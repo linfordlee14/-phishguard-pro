@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Org-scoped access: user must belong to the org
+    function isOrgMember(orgId) {
+      return request.auth != null &&
+             get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == request.auth.uid;
+    }
+
+    match /organizations/{orgId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      allow create: if request.auth != null;
+    }
+
+    match /employees/{empId} {
+      allow read, write: if isOrgMember(resource.data.orgId);
+      allow create: if request.auth != null;
+    }
+
+    match /campaigns/{campId} {
+      allow read, write: if isOrgMember(resource.data.orgId);
+      allow create: if request.auth != null;
+    }
+
+    match /campaignResults/{resultId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /templates/{templateId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Admin-only via backend
+    }
+  }
+}

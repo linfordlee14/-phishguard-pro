@@ -1,0 +1,60 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables / secrets
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+backend/.env
+
+# Firebase
+serviceAccountKey.json
+**/serviceAccountKey*.json
+firebase-debug.log
+.firebase/
+firebaserc
+
+# Python / Flask backend
+backend/__pycache__/
+backend/*.pyc
+backend/venv/
+backend/.venv/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# OS files
+Thumbs.db
+
+# Build / coverage
+coverage/
+*.tsbuildinfo
+
+# Package manager lock files (optional – remove if you want to track)
+# package-lock.json

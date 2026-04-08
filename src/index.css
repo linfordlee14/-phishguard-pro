@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #0A1628;
+  --color-surface: #1C2A3A;
+  --color-card: #1E2F42;
+  --color-cyan: #00D4FF;
+  --color-cyan-dim: #0099B8;
+  --color-red: #E63946;
+  --color-green: #2EC4B6;
+  --color-amber: #F4A261;
+  --color-text-1: #F0F4F8;
+  --color-text-2: #8BA3BE;
+  --color-border: #2A3F55;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-card: 8px;
+  --radius-btn: 6px;
+  --radius-input: 4px;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-navy);
+  color: var(--color-text-1);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-navy);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.font-mono-data {
+  font-family: var(--font-mono);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15);
+}
