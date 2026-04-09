@@ -15,6 +15,8 @@ CORS(
     app,
     resources={r"/api/*": {"origins": [
         "http://localhost:5173",
+        "https://linfytech.xyz",
+        "https://phishguard-pro.linfytech.xyz",
         "https://phishguard-pro.vercel.app",
     ]}},
 )
