@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useEmployees } from '@/hooks/useEmployees'
@@ -8,15 +8,22 @@ import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Navbar } from '@/components/layout/Navbar'
 import { LineChart } from '@/components/charts/LineChart'
+import { getAIRiskNarrative } from '@/services/api'
 import { getOrgRiskScore } from '@/utils/riskScore'
 import { format } from 'date-fns'
 import { Plus, TrendingDown, TrendingUp, ArrowRight } from 'lucide-react'
 import type { Campaign, Employee } from '@/types'
 
+const RISK_NARRATIVE_CACHE_KEY = 'pg_risk_narrative'
+const RISK_NARRATIVE_CACHE_TTL = 5 * 60 * 1000
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { campaigns, loading: campaignsLoading } = useCampaigns()
   const { employees, loading: employeesLoading } = useEmployees()
+  const [riskNarrative, setRiskNarrative] = useState('')
+  const [riskLoading, setRiskLoading] = useState(true)
+  const hasLoadedNarrativeRef = useRef(false)
 
   const loading = campaignsLoading || employeesLoading
 
@@ -60,6 +67,70 @@ export default function Dashboard() {
       .slice(0, 3),
     [campaigns]
   )
+
+  const insightCampaigns = useMemo(() => campaigns.map((campaign: Campaign) => ({
+    name: campaign.name,
+    stats: campaign.stats,
+  })), [campaigns])
+
+  const insightEmployees = useMemo(() => employees.map((employee: Employee) => ({
+    name: employee.name,
+    department: employee.department,
+    riskScore: employee.riskScore,
+    clickCount: employee.clickCount,
+    campaignsReceived: employee.campaignsReceived,
+  })), [employees])
+
+  const readCachedNarrative = () => {
+    if (typeof window === 'undefined') return null
+    const raw = sessionStorage.getItem(RISK_NARRATIVE_CACHE_KEY)
+    if (!raw) return null
+    try {
+      const parsed = JSON.parse(raw) as { narrative?: string; cachedAt?: number }
+      if (!parsed.narrative || typeof parsed.cachedAt !== 'number') return null
+      if (Date.now() - parsed.cachedAt >= RISK_NARRATIVE_CACHE_TTL) return null
+      return parsed.narrative
+    } catch {
+      return null
+    }
+  }
+
+  const writeCachedNarrative = (narrative: string) => {
+    if (typeof window === 'undefined') return
+    sessionStorage.setItem(
+      RISK_NARRATIVE_CACHE_KEY,
+      JSON.stringify({ narrative, cachedAt: Date.now() })
+    )
+  }
+
+  const loadRiskNarrative = async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      const cached = readCachedNarrative()
+      if (cached) {
+        setRiskNarrative(cached)
+        setRiskLoading(false)
+        return
+      }
+    }
+
+    setRiskLoading(true)
+    try {
+      const response = await getAIRiskNarrative(insightCampaigns, insightEmployees)
+      const narrative = response?.narrative || 'AI analysis temporarily unavailable. Please try again shortly.'
+      setRiskNarrative(narrative)
+      writeCachedNarrative(narrative)
+    } catch {
+      setRiskNarrative('AI analysis temporarily unavailable. Please try again shortly.')
+    } finally {
+      setRiskLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (loading || hasLoadedNarrativeRef.current) return
+    hasLoadedNarrativeRef.current = true
+    void loadRiskNarrative(false)
+  }, [loading, insightCampaigns, insightEmployees])
 
   if (loading) {
     return (
@@ -108,6 +179,22 @@ export default function Dashboard() {
             </Badge>
           </Card>
         </div>
+
+        <Card className="overflow-hidden" tint="blue">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <Badge variant="info">🧠 AI Insight</Badge>
+            <Button variant="secondary" size="sm" onClick={() => void loadRiskNarrative(true)} loading={riskLoading}>
+              Refresh
+            </Button>
+          </div>
+          {riskLoading ? (
+            <Skeleton variant="text" rows={4} />
+          ) : (
+            <p className={`text-base leading-7 whitespace-pre-wrap ${riskNarrative.toLowerCase().includes('temporarily unavailable') ? 'text-amber' : 'text-text-2'}`}>
+              {riskNarrative}
+            </p>
+          )}
+        </Card>
 
         {/* Main content grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

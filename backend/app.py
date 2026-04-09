@@ -1,27 +1,63 @@
 import os
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 
-from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 import firebase_admin
 from firebase_admin import credentials, firestore
-
-load_dotenv()
-
-# Initialise Firebase Admin SDK
-cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-if cred_path and os.path.exists(cred_path):
-    cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred)
-else:
-    firebase_admin.initialize_app()
-
-db = firestore.client()
+from ai_service import generate_risk_narrative, generate_campaign_debrief, generate_phishing_template, copilot_chat
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(
+    app,
+    resources={r"/api/*": {"origins": [
+        "http://localhost:5173",
+        "https://phishguard-pro.vercel.app",
+    ]}},
+)
+
+
+def init_firebase():
+    """Initialise Firebase Admin SDK without crashing startup."""
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
+        if firebase_admin._apps:
+            print("✅ Firebase Admin SDK already initialised")
+            return
+
+        service_account_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "{}")
+        credential_source = None
+
+        if service_account_json and service_account_json != "{}":
+            credential_source = json.loads(service_account_json)
+        else:
+            service_account_file = Path(__file__).with_name("serviceAccount.json")
+            if service_account_file.exists():
+                with service_account_file.open("r", encoding="utf-8") as handle:
+                    credential_source = json.load(handle)
+
+        if credential_source:
+            firebase_admin.initialize_app(credentials.Certificate(credential_source))
+            print("✅ Firebase Admin SDK initialised")
+        else:
+            print("❌ Firebase Admin SDK not initialised: credentials missing")
+    except Exception as exc:
+        print(f"❌ Firebase Admin SDK initialisation failed: {exc}")
+
+
+def get_db():
+    if not firebase_admin._apps:
+        return None
+    return firestore.client()
+
+
+init_firebase()
 
 
 @app.route("/api/health", methods=["GET"])
@@ -32,6 +68,10 @@ def health():
 @app.route("/api/send-campaign", methods=["POST"])
 def send_campaign():
     """Send phishing simulation emails (mock – logs instead of sending)."""
+    db = get_db()
+    if db is None:
+        return jsonify({"error": "Firebase not configured"}), 503
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Missing request body"}), 400
@@ -80,6 +120,10 @@ def send_campaign():
 @app.route("/api/campaign/<campaign_id>/stats", methods=["GET"])
 def campaign_stats(campaign_id: str):
     """Get aggregated stats for a campaign."""
+    db = get_db()
+    if db is None:
+        return jsonify({"error": "Firebase not configured"}), 503
+
     results = (
         db.collection("campaignResults")
         .where("campaignId", "==", campaign_id)
@@ -104,6 +148,10 @@ def campaign_stats(campaign_id: str):
 @app.route("/api/campaign/<campaign_id>/track-click", methods=["POST"])
 def track_click(campaign_id: str):
     """Record that an employee clicked the phishing link."""
+    db = get_db()
+    if db is None:
+        return jsonify({"error": "Firebase not configured"}), 503
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Missing request body"}), 400
@@ -147,6 +195,10 @@ def track_click(campaign_id: str):
 @app.route("/api/org/<org_id>/risk-summary", methods=["GET"])
 def risk_summary(org_id: str):
     """Get organisation-level risk summary."""
+    db = get_db()
+    if db is None:
+        return jsonify({"error": "Firebase not configured"}), 503
+
     employees = (
         db.collection("employees").where("orgId", "==", org_id).stream()
     )
@@ -175,5 +227,54 @@ def risk_summary(org_id: str):
     })
 
 
+@app.route("/api/ai/risk-narrative", methods=["POST"])
+def ai_risk_narrative():
+    data = request.get_json() or {}
+    narrative = generate_risk_narrative(
+        campaigns=data.get("campaigns", []),
+        employees=data.get("employees", [])
+    )
+    return jsonify({"narrative": narrative})
+
+
+@app.route("/api/ai/campaign-debrief", methods=["POST"])
+def ai_campaign_debrief():
+    data = request.get_json() or {}
+    debrief = generate_campaign_debrief(
+        campaign_name=data.get("campaignName", "Campaign"),
+        stats=data.get("stats", {})
+    )
+    return jsonify({"debrief": debrief})
+
+
+@app.route("/api/ai/generate-template", methods=["POST"])
+def ai_generate_template():
+    data = request.get_json() or {}
+    result = generate_phishing_template(
+        brand=data.get("brand", ""),
+        scenario=data.get("scenario", ""),
+        difficulty=data.get("difficulty", "medium")
+    )
+    return jsonify(result)
+
+
+@app.route("/api/ai/copilot-chat", methods=["POST", "OPTIONS"])
+def ai_copilot_chat():
+    if request.method == "OPTIONS":
+        return ("", 204)
+
+    data = request.get_json() or {}
+    response = copilot_chat(
+        message=data.get("message", ""),
+        context=data.get("context") or {},
+    )
+    return jsonify({"response": response})
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true",
+    )

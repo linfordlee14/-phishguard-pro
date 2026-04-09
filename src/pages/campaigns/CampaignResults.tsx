@@ -11,8 +11,9 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { exportToPdf } from '@/utils/pdfExport'
 import { format } from 'date-fns'
-import { Download, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { Download, ArrowUpRight, ArrowDownRight, Minus, Sparkles, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { getAICampaignDebrief } from '@/services/api'
 import type { Campaign, CampaignResult, Employee } from '@/types'
 
 export default function CampaignResults() {
@@ -25,6 +26,8 @@ export default function CampaignResults() {
   const [results, setResults] = useState<CampaignResult[]>([])
   const [employees, setEmployees] = useState<Map<string, Employee>>(new Map())
   const [loading, setLoading] = useState(true)
+  const [debrief, setDebrief] = useState('')
+  const [debriefLoading, setDebriefLoading] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -63,6 +66,31 @@ export default function CampaignResults() {
       toast.success('PDF downloaded')
     } catch {
       toast.error('PDF export failed')
+    }
+  }
+
+  const handleGenerateDebrief = async () => {
+    if (!campaign) return
+    setDebriefLoading(true)
+    try {
+      const response = await getAICampaignDebrief(
+        campaign.name,
+        campaign.stats || { sent: 0, opened: 0, clicked: 0, reported: 0, trainingCompleted: 0 }
+      )
+      setDebrief(response?.debrief || 'AI analysis temporarily unavailable. Please try again shortly.')
+    } catch {
+      setDebrief('AI analysis temporarily unavailable. Please try again shortly.')
+    } finally {
+      setDebriefLoading(false)
+    }
+  }
+
+  const handleCopyDebrief = async () => {
+    try {
+      await navigator.clipboard.writeText(debrief)
+      toast.success('Copied!')
+    } catch {
+      toast.error('Copy failed')
     }
   }
 
@@ -128,10 +156,31 @@ export default function CampaignResults() {
 
         {/* Chart + Table */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card>
-            <h3 className="font-semibold text-text-1 mb-4">Outcome Distribution</h3>
-            <DonutChart data={donutData} height={250} />
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <h3 className="font-semibold text-text-1 mb-4">Outcome Distribution</h3>
+              <DonutChart data={donutData} height={250} />
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="font-semibold text-text-1">Executive Debrief</h3>
+                <Button size="sm" onClick={handleGenerateDebrief} loading={debriefLoading}>
+                  <Sparkles className="h-4 w-4" /> Generate Executive Debrief
+                </Button>
+              </div>
+              {debrief ? (
+                <div className="space-y-4">
+                  <p className="text-text-2 text-sm leading-6 whitespace-pre-wrap">{debrief}</p>
+                  <Button variant="secondary" size="sm" onClick={handleCopyDebrief}>
+                    <Copy className="h-4 w-4" /> Copy to clipboard
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-text-2 text-sm">Generate a concise executive summary for leadership.</p>
+              )}
+            </Card>
+          </div>
 
           <Card className="lg:col-span-2">
             <h3 className="font-semibold text-text-1 mb-4">Individual Results</h3>

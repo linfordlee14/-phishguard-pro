@@ -6,12 +6,14 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
+import LandingPage from '@/pages/landing/LandingPage'
 import Dashboard from '@/pages/dashboard/Dashboard'
 import CampaignList from '@/pages/campaigns/CampaignList'
 import CampaignCreate from '@/pages/campaigns/CampaignCreate'
 import CampaignResults from '@/pages/campaigns/CampaignResults'
 import EmployeeList from '@/pages/employees/EmployeeList'
 import EmployeeDetail from '@/pages/employees/EmployeeDetail'
+import TrainingOverview from '@/pages/training/TrainingOverview'
 import TrainingModule from '@/pages/training/TrainingModule'
 import Reports from '@/pages/reports/Reports'
 import Billing from '@/pages/billing/Billing'
@@ -45,6 +47,7 @@ export default function App() {
           }}
         />
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/training/:resultId" element={<TrainingModule />} />
@@ -56,12 +59,13 @@ export default function App() {
             <Route path="/campaigns/:id/results" element={<CampaignResults />} />
             <Route path="/employees" element={<EmployeeList />} />
             <Route path="/employees/:id" element={<EmployeeDetail />} />
+            <Route path="/training" element={<TrainingOverview />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

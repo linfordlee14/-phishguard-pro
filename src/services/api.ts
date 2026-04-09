@@ -39,3 +39,35 @@ export const api = {
     )
   },
 }
+
+export const getAIRiskNarrative = async (campaigns: any[], employees: any[]) => {
+  return request<{ narrative: string }>('/api/ai/risk-narrative', {
+    method: 'POST',
+    body: JSON.stringify({ campaigns, employees }),
+  })
+}
+
+export const getAICampaignDebrief = async (campaignName: string, stats: object) => {
+  return request<{ debrief: string }>('/api/ai/campaign-debrief', {
+    method: 'POST',
+    body: JSON.stringify({ campaignName, stats }),
+  })
+}
+
+export const generateAITemplate = async (brand: string, scenario: string, difficulty: string) => {
+  return request<{ subject: string; htmlContent: string; redFlags: string[] }>('/api/ai/generate-template', {
+    method: 'POST',
+    body: JSON.stringify({ brand, scenario, difficulty }),
+  })
+}
+
+export const sendCopilotMessage = async (
+  message: string,
+  orgId: string,
+  context?: object
+) => {
+  return request<{ response: string }>('/api/ai/copilot-chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, orgId, context }),
+  })
+}

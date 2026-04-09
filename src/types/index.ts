@@ -65,6 +65,11 @@ export interface Template {
   subject: string
   previewHtml: string
   category: string
+  orgId?: string
+  isCustom?: boolean
+  htmlContent?: string
+  redFlags?: string[]
+  createdAt?: Timestamp
 }
 
 export interface SortConfig {
