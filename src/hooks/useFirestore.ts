@@ -13,7 +13,12 @@ import {
   type QueryConstraint,
   type DocumentData,
 } from 'firebase/firestore'
-import { db } from '@/services/firebase'
+import { db, firebaseInitializationError, isFirebaseReady } from '@/services/firebase'
+
+function ensureFirestore() {
+  if (!isFirebaseReady) throw new Error(firebaseInitializationError || 'Firestore is unavailable.')
+  return db
+}
 
 export function useFirestore<T extends DocumentData & { id: string }>(collectionName: string) {
   const [data, setData] = useState<T[]>([])
@@ -21,7 +26,8 @@ export function useFirestore<T extends DocumentData & { id: string }>(collection
 
   const getAll = useCallback(async (constraints: QueryConstraint[] = []) => {
     setLoading(true)
-    const q = query(collection(db, collectionName), ...constraints)
+    const firestore = ensureFirestore()
+    const q = query(collection(firestore, collectionName), ...constraints)
     const snap = await getDocs(q)
     const items = snap.docs.map((d) => ({ ...d.data(), id: d.id } as T))
     setData(items)
@@ -30,26 +36,31 @@ export function useFirestore<T extends DocumentData & { id: string }>(collection
   }, [collectionName])
 
   const getOne = useCallback(async (id: string) => {
-    const snap = await getDoc(doc(db, collectionName, id))
+    const firestore = ensureFirestore()
+    const snap = await getDoc(doc(firestore, collectionName, id))
     if (!snap.exists()) return null
     return { ...snap.data(), id: snap.id } as T
   }, [collectionName])
 
   const add = useCallback(async (item: Omit<T, 'id'>) => {
-    const ref = await addDoc(collection(db, collectionName), item)
+    const firestore = ensureFirestore()
+    const ref = await addDoc(collection(firestore, collectionName), item)
     return ref.id
   }, [collectionName])
 
   const update = useCallback(async (id: string, updates: Partial<T>) => {
-    await updateDoc(doc(db, collectionName, id), updates as DocumentData)
+    const firestore = ensureFirestore()
+    await updateDoc(doc(firestore, collectionName, id), updates as DocumentData)
   }, [collectionName])
 
   const remove = useCallback(async (id: string) => {
-    await deleteDoc(doc(db, collectionName, id))
+    const firestore = ensureFirestore()
+    await deleteDoc(doc(firestore, collectionName, id))
   }, [collectionName])
 
   const subscribe = useCallback((constraints: QueryConstraint[] = [], callback?: (items: T[]) => void) => {
-    const q = query(collection(db, collectionName), ...constraints)
+    const firestore = ensureFirestore()
+    const q = query(collection(firestore, collectionName), ...constraints)
     return onSnapshot(q, (snap) => {
       const items = snap.docs.map((d) => ({ ...d.data(), id: d.id } as T))
       setData(items)
@@ -70,7 +81,11 @@ export function useFirestoreQuery<T extends DocumentData & { id: string }>(
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!orgId) return
+    if (!isFirebaseReady || !orgId) {
+      setData([])
+      setLoading(false)
+      return
+    }
     const constraints: QueryConstraint[] = [
       where('orgId', '==', orgId),
       ...additionalConstraints,
@@ -82,7 +97,7 @@ export function useFirestoreQuery<T extends DocumentData & { id: string }>(
       setLoading(false)
     })
     return unsub
-  }, [collectionName, orgId])
+  }, [collectionName, orgId, additionalConstraints])
 
   return { data, loading }
 }

@@ -31,13 +31,13 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-navy/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(4,9,18,0.78)] backdrop-blur-md"
       onClick={(e) => e.target === overlayRef.current && onClose()}
     >
-      <div className={`card p-6 w-full mx-4 ${sizeClasses[size]} animate-in`}>
-        <div className="flex items-center justify-between mb-4">
+      <div className={`card mx-4 w-full border border-white/[0.06] p-6 ${sizeClasses[size]}`}>
+        <div className="mb-5 flex items-center justify-between">
           {title && <h2 className="text-lg font-semibold text-text-1">{title}</h2>}
-          <button onClick={onClose} className="p-1 text-text-2 hover:text-text-1 transition-colors ml-auto">
+          <button onClick={onClose} className="ml-auto rounded-xl border border-white/[0.08] p-2 text-text-2 transition-colors hover:border-cyan/20 hover:text-text-1">
             <X className="h-5 w-5" />
           </button>
         </div>

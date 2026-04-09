@@ -17,8 +17,8 @@ export function ProgressBar({ value, max = 100, color = 'bg-cyan', label, showVa
           {showValue && <span className="font-mono-data text-text-1">{value} / {max}</span>}
         </div>
       )}
-      <div className="h-2 bg-surface rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+      <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.06]">
+        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%`, boxShadow: '0 0 18px rgba(0, 212, 255, 0.22)' }} />
       </div>
     </div>
   )

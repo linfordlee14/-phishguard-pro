@@ -131,7 +131,7 @@ export default function Reports() {
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
                       {Array.from({ length: 7 }).map((__, j) => (
-                        <td key={j} className="p-3"><div className="h-4 bg-surface rounded animate-pulse" /></td>
+                        <td key={j} className="p-3"><div className="shimmer-block h-4 rounded-full" /></td>
                       ))}
                     </tr>
                   ))

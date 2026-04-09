@@ -8,10 +8,10 @@ interface CardProps {
 }
 
 const tintClasses = {
-  blue: 'border-cyan/30 bg-cyan/5',
-  red: 'border-red/30 bg-red/5',
-  green: 'border-green/30 bg-green/5',
-  amber: 'border-amber/30 bg-amber/5',
+  blue: 'bg-[radial-gradient(circle_at_top_left,rgba(0,212,255,0.12),transparent_46%)]',
+  red: 'bg-[radial-gradient(circle_at_top_left,rgba(230,57,70,0.12),transparent_46%)]',
+  green: 'bg-[radial-gradient(circle_at_top_left,rgba(46,196,182,0.12),transparent_46%)]',
+  amber: 'bg-[radial-gradient(circle_at_top_left,rgba(244,162,97,0.14),transparent_46%)]',
 }
 
 export function Card({ children, className = '', tint, id }: CardProps) {

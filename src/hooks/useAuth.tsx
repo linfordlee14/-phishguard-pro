@@ -7,7 +7,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'
-import { auth, db } from '@/services/firebase'
+import { auth, db, firebaseInitializationError, isFirebaseReady } from '@/services/firebase'
 import { seedInitialData } from '@/services/seedData'
 
 interface AuthState {
@@ -44,9 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialState)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    if (!isFirebaseReady) {
+      dispatch({ type: 'SET_USER', user: null, orgId: null, orgName: null })
+      return
+    }
+
+    const firebaseAuth = auth
+    const firestore = db
+
+    const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
       if (user) {
-        const orgSnap = await getDoc(doc(db, 'organizations', user.uid))
+        const orgSnap = await getDoc(doc(firestore, 'organizations', user.uid))
         const orgData = orgSnap.data()
         dispatch({
           type: 'SET_USER',
@@ -62,14 +70,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
+    if (!isFirebaseReady) throw new Error(firebaseInitializationError || 'Firebase authentication is unavailable.')
+    const firebaseAuth = auth
     dispatch({ type: 'SET_LOADING', loading: true })
-    await signInWithEmailAndPassword(auth, email, password)
+    await signInWithEmailAndPassword(firebaseAuth, email, password)
   }
 
   const register = async (email: string, password: string, companyName: string, _fullName: string) => {
+    if (!isFirebaseReady) throw new Error(firebaseInitializationError || 'Firebase authentication is unavailable.')
+    const firebaseAuth = auth
+    const firestore = db
     dispatch({ type: 'SET_LOADING', loading: true })
-    const cred = await createUserWithEmailAndPassword(auth, email, password)
-    const orgRef = doc(db, 'organizations', cred.user.uid)
+    const cred = await createUserWithEmailAndPassword(firebaseAuth, email, password)
+    const orgRef = doc(firestore, 'organizations', cred.user.uid)
     await setDoc(orgRef, {
       id: cred.user.uid,
       name: companyName,
