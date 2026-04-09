@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { useEffect, useState } from 'react'
 import { AuthProvider } from '@/hooks/useAuth'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -20,11 +21,26 @@ import Billing from '@/pages/billing/Billing'
 import Settings from '@/pages/settings/Settings'
 
 function AuthenticatedLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const savedValue = window.localStorage.getItem('pg-sidebar-collapsed')
+    if (savedValue !== null) return savedValue === 'true'
+    return window.innerWidth < 1024
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('pg-sidebar-collapsed', String(sidebarCollapsed))
+  }, [sidebarCollapsed])
+
   return (
     <ProtectedRoute>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 ml-64 max-md:ml-16 transition-all">
+      <div className="security-shell flex min-h-screen">
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((value) => !value)} />
+        <div
+          className="flex-1 transition-[margin] duration-300 max-md:!ml-16"
+          style={{ marginLeft: sidebarCollapsed ? '64px' : '220px' }}
+        >
           <PageWrapper>
             <Outlet />
           </PageWrapper>
@@ -39,11 +55,20 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Toaster
-          position="top-right"
+          position="bottom-right"
           toastOptions={{
-            style: { background: '#1E2F42', color: '#F0F4F8', border: '1px solid #2A3F55' },
-            success: { iconTheme: { primary: '#2EC4B6', secondary: '#1E2F42' } },
-            error: { iconTheme: { primary: '#E63946', secondary: '#1E2F42' } },
+            duration: 4000,
+            style: {
+              background: 'rgba(12, 22, 40, 0.92)',
+              color: '#F0F4F8',
+              border: '1px solid rgba(0, 212, 255, 0.2)',
+              borderRadius: '18px',
+              padding: '14px 16px',
+              boxShadow: '0 18px 60px rgba(0, 0, 0, 0.34)',
+              backdropFilter: 'blur(18px)',
+            },
+            success: { iconTheme: { primary: '#2EC4B6', secondary: '#0c1628' } },
+            error: { iconTheme: { primary: '#E63946', secondary: '#0c1628' } },
           }}
         />
         <Routes>

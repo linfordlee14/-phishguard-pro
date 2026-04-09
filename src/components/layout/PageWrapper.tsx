@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { useAuth } from '@/hooks/useAuth'
 import { useCampaigns } from '@/hooks/useCampaigns'
@@ -10,6 +11,7 @@ interface PageWrapperProps {
 }
 
 export function PageWrapper({ children }: PageWrapperProps) {
+  const location = useLocation()
   const { orgId } = useAuth()
   const { campaigns, loading: campaignsLoading } = useCampaigns()
   const { employees, loading: employeesLoading } = useEmployees()
@@ -35,8 +37,10 @@ export function PageWrapper({ children }: PageWrapperProps) {
 
   return (
     <ErrorBoundary>
-      <main className="p-6 max-w-7xl mx-auto w-full">
-        {children}
+      <main className="min-h-screen p-4 sm:p-6 lg:p-8">
+        <div key={location.pathname} className="page-transition mx-auto w-full max-w-[1480px]">
+          {children}
+        </div>
         <SecurityCopilot orgId={orgId} context={copilotContext} />
       </main>
     </ErrorBoundary>

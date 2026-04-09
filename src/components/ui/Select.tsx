@@ -8,7 +8,7 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ label, options, className = '', id, ...props }: SelectProps) {
   const selectId = id || label?.toLowerCase().replace(/\s+/g, '-')
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {label && (
         <label htmlFor={selectId} className="block text-sm font-medium text-text-2">
           {label}
@@ -16,7 +16,7 @@ export function Select({ label, options, className = '', id, ...props }: SelectP
       )}
       <select
         id={selectId}
-        className={`w-full px-3 py-2 bg-surface border border-border rounded-[var(--radius-input)] text-text-1 transition-colors appearance-none cursor-pointer ${className}`}
+        className={`w-full appearance-none cursor-pointer rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-text-1 transition-[border-color,box-shadow,background-color] hover:border-cyan/20 ${className}`}
         {...props}
       >
         {options.map((opt) => (
