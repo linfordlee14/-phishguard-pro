@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { firebaseInitializationError } from '@/services/firebase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Shield } from 'lucide-react'
+import { Shield, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Register() {
@@ -57,6 +58,18 @@ export default function Register() {
         <div className="card p-8">
           <h2 className="text-xl font-semibold text-text-1 mb-1">Create your account</h2>
           <p className="text-text-2 text-sm mb-6">No credit card required</p>
+
+          {firebaseInitializationError && (
+            <div className="mb-6 rounded-[20px] border border-amber/30 bg-amber/[0.08] px-4 py-3" data-testid="firebase-config-warning-register">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 text-amber" />
+                <div>
+                  <p className="text-sm font-semibold text-text-1">Runtime setup needed</p>
+                  <p className="mt-1 text-sm text-text-2">{firebaseInitializationError}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
