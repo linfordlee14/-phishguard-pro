@@ -3,10 +3,14 @@ import { Timestamp } from 'firebase/firestore'
 export interface Organization {
   id: string
   name: string
+  adminRole?: 'IT Manager' | 'Business Owner' | 'Compliance Officer' | 'Other'
+  onboardingCompleted?: boolean
   plan: 'starter' | 'pro' | 'business'
   seats: number
   ownerId: string
   createdAt: Timestamp
+  onboardingStartedAt?: Timestamp
+  onboardingCompletedAt?: Timestamp
 }
 
 export interface Employee {
