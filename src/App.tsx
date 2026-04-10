@@ -8,6 +8,7 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
 import LandingPage from '@/pages/landing/LandingPage'
+import Onboarding from '@/pages/onboarding/Onboarding'
 import Dashboard from '@/pages/dashboard/Dashboard'
 import CampaignList from '@/pages/campaigns/CampaignList'
 import CampaignCreate from '@/pages/campaigns/CampaignCreate'
@@ -34,19 +35,17 @@ function AuthenticatedLayout() {
   }, [sidebarCollapsed])
 
   return (
-    <ProtectedRoute>
-      <div className="security-shell flex min-h-screen">
-        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((value) => !value)} />
-        <div
-          className="flex-1 transition-[margin] duration-300 max-md:!ml-16"
-          style={{ marginLeft: sidebarCollapsed ? '64px' : '220px' }}
-        >
-          <PageWrapper>
-            <Outlet />
-          </PageWrapper>
-        </div>
+    <div className="security-shell flex min-h-screen">
+      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((value) => !value)} />
+      <div
+        className="flex-1 transition-[margin] duration-300 max-md:!ml-16"
+        style={{ marginLeft: sidebarCollapsed ? '64px' : '220px' }}
+      >
+        <PageWrapper>
+          <Outlet />
+        </PageWrapper>
       </div>
-    </ProtectedRoute>
+    </div>
   )
 }
 
@@ -77,17 +76,21 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/training/:resultId" element={<TrainingModule />} />
 
-          <Route element={<AuthenticatedLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/campaigns" element={<CampaignList />} />
-            <Route path="/campaigns/create" element={<CampaignCreate />} />
-            <Route path="/campaigns/:id/results" element={<CampaignResults />} />
-            <Route path="/employees" element={<EmployeeList />} />
-            <Route path="/employees/:id" element={<EmployeeDetail />} />
-            <Route path="/training" element={<TrainingOverview />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/settings" element={<Settings />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/onboarding" element={<Onboarding />} />
+
+            <Route element={<AuthenticatedLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/campaigns" element={<CampaignList />} />
+              <Route path="/campaigns/create" element={<CampaignCreate />} />
+              <Route path="/campaigns/:id/results" element={<CampaignResults />} />
+              <Route path="/employees" element={<EmployeeList />} />
+              <Route path="/employees/:id" element={<EmployeeDetail />} />
+              <Route path="/training" element={<TrainingOverview />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

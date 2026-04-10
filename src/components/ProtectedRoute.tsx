@@ -1,9 +1,10 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Skeleton } from '@/components/ui/Skeleton'
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+export function ProtectedRoute() {
+  const location = useLocation()
+  const { user, loading, onboardingCompleted } = useAuth()
 
   if (loading) {
     return (
@@ -18,5 +19,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return <Navigate to="/login" replace />
 
-  return <>{children}</>
+  if (!onboardingCompleted && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  if (onboardingCompleted && location.pathname === '/onboarding') {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return <Outlet />
 }

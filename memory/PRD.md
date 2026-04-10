@@ -1,58 +1,56 @@
 # PRD
 
 ## Original Problem Statement
-I have a React + Vite + TypeScript + Firebase phishing simulation SaaS called PhishGuard Pro. The repo is already connected. The app builds clean with zero TypeScript errors.
+User requested two sequential tasks:
 
-I want a premium SaaS UI upgrade across the entire authenticated app shell. Reference: Linear.app, Vercel dashboard, Stripe dashboard.
+### Task 1 — Fix Landing Page to Match App Aesthetic
+- Rebuild `src/pages/landing/LandingPage.tsx` so it matches the premium dark SaaS shell already applied to the authenticated product.
+- Match the same dark layered background, Inter + JetBrains Mono typography, cyan accent, dark glass cards, solid cyan buttons, subtle cyan borders, sidebar-style branding, screenshot-style real product mockup, refreshed features/pricing/testimonials/footer, and move all landing styling into `src/pages/landing/landing.module.css`.
 
-Design system requirements:
-- Dark-first (already dark — keep it)
-- Font: Inter for body, JetBrains Mono for data/numbers
-- Primary accent: #00d4ff (cyan) — already set
-- Background layers: #080f1c → #0c1628 → #111c2d → #162035
-- No colored side borders on cards
-- No gradient buttons — solid cyan only
-- No purple/indigo — this is a security product
+### Task 2 — First-Run Onboarding Flow
+- After registration and org creation, require new users to complete a 3-step onboarding wizard before reaching the dashboard.
+- Trigger based on `onboardingCompleted` on the org document.
+- Add protected `/onboarding` route outside the app shell.
+- Step 1 updates org doc with `name`, `adminRole`, and `onboardingStartedAt`.
+- Step 2 imports employees via CSV or manual entry into the existing root `employees` collection with `orgId`.
+- Step 3 marks onboarding complete and routes to campaign creation or dashboard.
+- Finish with `npm run build` and show changed files.
 
-Specific UI changes needed:
-1. APP SIDEBAR
-2. DASHBOARD PAGE
-3. CAMPAIGN LIST PAGE
-4. LOADING STATES
-5. GLOBAL
-
-Keep all existing routes, hooks, Firestore calls, and component interfaces unchanged. Only update visual/layout layer.
-
-After implementation: run npm run build and fix all errors. Show me the changed files list when done.
+## User Clarifications
+- Keep using the existing root `employees` collection with `orgId` for onboarding employee writes.
+- Keep using the existing org field name `name` instead of switching to `orgName`.
 
 ## Architecture Decisions
-- Kept the existing React + Vite + TypeScript + Firebase structure and route map unchanged.
-- Applied the visual refresh primarily through shared shell/layout/UI primitives so the rest of the authenticated app inherits the new design.
-- Added a safe Firebase startup guard to prevent runtime white-screen crashes when VITE_FIREBASE_* values are missing or invalid.
-- Preserved existing Firestore hooks, campaign/employee flows, and page routing contracts.
+- Preserved the existing React + Vite + TypeScript + Firebase architecture and route map.
+- Kept onboarding employee writes compatible with the current data model by using the root `employees` collection instead of introducing a new subcollection pattern.
+- Added onboarding gating at the protected-route layer while keeping `/onboarding` outside the authenticated shell layout.
+- Updated auth state to listen to the organization document in real time so onboarding completion immediately unlocks the main app without a reload.
+- Rebuilt the landing page with isolated CSS modules to prevent style leakage into the authenticated shell.
 
 ## Implemented
-- Premium dark shell refresh with layered backgrounds, improved cards, inputs, selects, buttons, badges, shimmer loaders, page transitions, and bottom-right toasts.
-- Collapsible sidebar with icon-only mode, custom hover tooltips, active cyan state, profile block, settings access, and bottom collapse control.
-- Dashboard redesign with glass KPI cards, SVG risk gauge, refined Recharts line chart, AI insight card, risky employees table, and upgraded recent campaigns section.
-- Campaign list redesign into premium campaign cards with status mapping, send date, click-rate progress bars, and animated empty state.
-- Loader updates for all touched loading views plus Firebase config fallback messaging on auth pages.
-- Verified successful production build with `npm run build`.
+- Rebuilt the landing page to visually match the premium in-app aesthetic with sidebar-style branding, cyan CTA buttons, layered dark background, premium feature/pricing/testimonial sections, and a product-specific dashboard mockup.
+- Moved all landing page styling into `src/pages/landing/landing.module.css` and removed the old inline/style-injection approach.
+- Added protected `/onboarding` route and a full-screen 3-step onboarding wizard.
+- Step 1 now saves organization `name`, `adminRole`, and `onboardingStartedAt`.
+- Step 2 supports CSV parsing preview and manual employee entry (up to 5 rows), then batch writes onboarding employees into the root `employees` collection.
+- Step 3 marks `onboardingCompleted` and `onboardingCompletedAt`, then routes users to `/campaigns/create` or `/dashboard`.
+- Updated `useAuth` and `ProtectedRoute` so incomplete organizations are sent to onboarding and completed organizations bypass it.
+- Confirmed `npm run build` passes successfully.
 
 ## Prioritized Backlog
 ### P0
-- Provide valid VITE_FIREBASE_* runtime values so authenticated flows can be exercised end-to-end.
-- Add/verify authenticated screenshots for dashboard and campaign pages once Firebase runtime config is available.
+- Add authenticated end-to-end onboarding verification once valid Firebase client environment values are available.
+- Capture real post-login screenshots for `/onboarding`, `/dashboard`, and `/campaigns/create` with live data.
 
 ### P1
-- Extend `data-testid` coverage to remaining untouched interactive controls across the app.
-- Add route-level code splitting to reduce the large production chunk warning.
+- Add dedupe safeguards for onboarding employee imports so repeated submissions cannot create duplicates.
+- Extend onboarding with first-campaign prefill if the campaign creation page should inherit onboarding choices.
 
 ### P2
-- Bring the same premium polish deeper into employees, reports, billing, settings, and training detail views.
-- Add richer empty/loading states for every remaining page.
+- Code-split large route bundles to reduce the current production chunk warning.
+- Add richer empty states and deeper premium polish to remaining non-upgraded pages.
 
 ## Next Tasks
-- Re-test authenticated shell routes after valid Firebase client env values are present.
-- Capture dashboard and campaigns screenshots with live data.
-- Continue page-by-page UI harmonization across the remaining authenticated views.
+- Validate the first-run onboarding path with a working Firebase client setup.
+- Optionally prefill the campaign builder with the onboarding template selection.
+- Expand the landing page footer links to real policy/help pages if those routes are added later.

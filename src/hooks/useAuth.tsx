@@ -6,7 +6,7 @@ import {
   signOut,
   type User,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'
+import { doc, onSnapshot, setDoc, Timestamp } from 'firebase/firestore'
 import { auth, db, firebaseInitializationError, isFirebaseReady } from '@/services/firebase'
 import { seedInitialData } from '@/services/seedData'
 
@@ -14,19 +14,26 @@ interface AuthState {
   user: User | null
   orgId: string | null
   orgName: string | null
+  onboardingCompleted: boolean
   loading: boolean
 }
 
 type AuthAction =
-  | { type: 'SET_USER'; user: User | null; orgId: string | null; orgName: string | null }
+  | { type: 'SET_USER'; user: User | null; orgId: string | null; orgName: string | null; onboardingCompleted: boolean }
   | { type: 'SET_LOADING'; loading: boolean }
 
-const initialState: AuthState = { user: null, orgId: null, orgName: null, loading: true }
+const initialState: AuthState = { user: null, orgId: null, orgName: null, onboardingCompleted: false, loading: true }
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'SET_USER':
-      return { user: action.user, orgId: action.orgId, orgName: action.orgName, loading: false }
+      return {
+        user: action.user,
+        orgId: action.orgId,
+        orgName: action.orgName,
+        onboardingCompleted: action.onboardingCompleted,
+        loading: false,
+      }
     case 'SET_LOADING':
       return { ...state, loading: action.loading }
   }
@@ -45,28 +52,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isFirebaseReady) {
-      dispatch({ type: 'SET_USER', user: null, orgId: null, orgName: null })
+      dispatch({ type: 'SET_USER', user: null, orgId: null, orgName: null, onboardingCompleted: false })
       return
     }
 
     const firebaseAuth = auth
     const firestore = db
+    let unsubscribeOrganization: (() => void) | undefined
 
-    const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
+    const unsub = onAuthStateChanged(firebaseAuth, (user) => {
+      if (unsubscribeOrganization) {
+        unsubscribeOrganization()
+        unsubscribeOrganization = undefined
+      }
+
       if (user) {
-        const orgSnap = await getDoc(doc(firestore, 'organizations', user.uid))
-        const orgData = orgSnap.data()
-        dispatch({
-          type: 'SET_USER',
-          user,
-          orgId: orgSnap.exists() ? orgSnap.id : null,
-          orgName: orgData?.name ?? null,
+        const organizationRef = doc(firestore, 'organizations', user.uid)
+        unsubscribeOrganization = onSnapshot(organizationRef, (organizationSnapshot) => {
+          const orgData = organizationSnapshot.data()
+          dispatch({
+            type: 'SET_USER',
+            user,
+            orgId: user.uid,
+            orgName: orgData?.name ?? null,
+            onboardingCompleted: orgData?.onboardingCompleted === true,
+          })
         })
       } else {
-        dispatch({ type: 'SET_USER', user: null, orgId: null, orgName: null })
+        dispatch({ type: 'SET_USER', user: null, orgId: null, orgName: null, onboardingCompleted: false })
       }
     })
-    return unsub
+
+    return () => {
+      unsubscribeOrganization?.()
+      unsub()
+    }
   }, [])
 
   const login = async (email: string, password: string) => {
@@ -86,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await setDoc(orgRef, {
       id: cred.user.uid,
       name: companyName,
+      onboardingCompleted: false,
       plan: 'pro',
       seats: 25,
       ownerId: cred.user.uid,
