@@ -6,11 +6,14 @@ export interface Organization {
   adminRole?: 'IT Manager' | 'Business Owner' | 'Compliance Officer' | 'Other'
   onboardingCompleted?: boolean
   plan: 'starter' | 'pro' | 'business'
+  seatsLimit?: number
   seats: number
+  billingStatus?: 'active' | 'trialing' | 'inactive'
   ownerId: string
   createdAt: Timestamp
   onboardingStartedAt?: Timestamp
   onboardingCompletedAt?: Timestamp
+  planActivatedAt?: Timestamp
 }
 
 export interface Employee {

@@ -1,56 +1,61 @@
 # PRD
 
 ## Original Problem Statement
-User requested two sequential tasks:
+Add PayFast subscription billing to PhishGuard Pro, using PayFast (South Africa) only.
 
-### Task 1 — Fix Landing Page to Match App Aesthetic
-- Rebuild `src/pages/landing/LandingPage.tsx` so it matches the premium dark SaaS shell already applied to the authenticated product.
-- Match the same dark layered background, Inter + JetBrains Mono typography, cyan accent, dark glass cards, solid cyan buttons, subtle cyan borders, sidebar-style branding, screenshot-style real product mockup, refreshed features/pricing/testimonials/footer, and move all landing styling into `src/pages/landing/landing.module.css`.
+Required sequence:
+1. Backend PayFast checkout + webhook in `backend/app.py`
+2. Frontend checkout API helper in `src/services/api.ts`
+3. Real billing page using existing shell/components
+4. Billing success page with confetti
+5. Plan enforcement in employees + billing routes
 
-### Task 2 — First-Run Onboarding Flow
-- After registration and org creation, require new users to complete a 3-step onboarding wizard before reaching the dashboard.
-- Trigger based on `onboardingCompleted` on the org document.
-- Add protected `/onboarding` route outside the app shell.
-- Step 1 updates org doc with `name`, `adminRole`, and `onboardingStartedAt`.
-- Step 2 imports employees via CSV or manual entry into the existing root `employees` collection with `orgId`.
-- Step 3 marks onboarding complete and routes to campaign creation or dashboard.
-- Finish with `npm run build` and show changed files.
+Constraints:
+- Keep existing Firestore org fields in use: `name`, `plan`, `seatsLimit`, `onboardingCompleted`, `adminRole`
+- Keep root `employees` collection filtered by `orgId`
+- Reuse existing UI components (`Button`, `Card`, `Badge`, `Modal`, `ProgressBar`)
+- App URL: `https://phishguard-pro.linfytech.xyz`
+- Do not use Stripe, Paddle, or any non-ZAR gateway
+- Do not change existing Firestore query patterns outside listed org doc billing updates
+- Do not change the onboarding flow
 
 ## User Clarifications
-- Keep using the existing root `employees` collection with `orgId` for onboarding employee writes.
-- Keep using the existing org field name `name` instead of switching to `orgName`.
+- Use the provided PayFast sandbox defaults for now.
+- Use a smart default feature set on the billing plan cards that matches the current product.
 
 ## Architecture Decisions
-- Preserved the existing React + Vite + TypeScript + Firebase architecture and route map.
-- Kept onboarding employee writes compatible with the current data model by using the root `employees` collection instead of introducing a new subcollection pattern.
-- Added onboarding gating at the protected-route layer while keeping `/onboarding` outside the authenticated shell layout.
-- Updated auth state to listen to the organization document in real time so onboarding completion immediately unlocks the main app without a reload.
-- Rebuilt the landing page with isolated CSS modules to prevent style leakage into the authenticated shell.
+- Implemented PayFast as a hosted redirect flow: frontend requests a checkout URL from the Flask backend, then redirects the browser to PayFast.
+- Added backend signature generation and ITN webhook verification directly in `backend/app.py` to keep billing logic close to the existing backend surface.
+- Kept Firestore writes limited to organization plan/billing fields from the webhook and reused the existing root `employees` collection for seat enforcement.
+- Replaced the old mocked billing page with a real data-driven billing experience inside the existing app shell.
+- Added a protected billing success page and seat-limit gating without changing campaign/training/onboarding flows.
 
 ## Implemented
-- Rebuilt the landing page to visually match the premium in-app aesthetic with sidebar-style branding, cyan CTA buttons, layered dark background, premium feature/pricing/testimonial sections, and a product-specific dashboard mockup.
-- Moved all landing page styling into `src/pages/landing/landing.module.css` and removed the old inline/style-injection approach.
-- Added protected `/onboarding` route and a full-screen 3-step onboarding wizard.
-- Step 1 now saves organization `name`, `adminRole`, and `onboardingStartedAt`.
-- Step 2 supports CSV parsing preview and manual employee entry (up to 5 rows), then batch writes onboarding employees into the root `employees` collection.
-- Step 3 marks `onboardingCompleted` and `onboardingCompletedAt`, then routes users to `/campaigns/create` or `/dashboard`.
-- Updated `useAuth` and `ProtectedRoute` so incomplete organizations are sent to onboarding and completed organizations bypass it.
-- Confirmed `npm run build` passes successfully.
+- Added backend `PLANS`, `/api/billing/create-checkout`, and `/api/billing/webhook` endpoints with PayFast signature verification, sandbox-aware IP checks, and org billing updates.
+- Updated `backend/.env.example` with `PAYFAST_MERCHANT_ID`, `PAYFAST_MERCHANT_KEY`, `PAYFAST_PASSPHRASE`, `PAYFAST_SANDBOX=true`, and `BACKEND_URL`.
+- Added `createCheckout()` to `src/services/api.ts`.
+- Rebuilt `src/pages/billing/Billing.tsx` to load org + employee data, show current plan/seat usage, render real upgrade cards, and redirect to PayFast checkout.
+- Added `src/pages/billing/BillingSuccess.tsx` with confetti, plan confirmation UI, and post-payment CTA paths.
+- Added the confetti CDN script to `index.html`.
+- Added seat-limit enforcement in `src/pages/employees/EmployeeList.tsx` using the existing `Modal` component and billing routing.
+- Added `/billing/success` to the protected app routes.
+- Verified `python -m py_compile backend/app.py` passes.
+- Verified `npm run build` passes successfully.
 
 ## Prioritized Backlog
 ### P0
-- Add authenticated end-to-end onboarding verification once valid Firebase client environment values are available.
-- Capture real post-login screenshots for `/onboarding`, `/dashboard`, and `/campaigns/create` with live data.
+- Test PayFast sandbox end-to-end with real sandbox callbacks against a reachable backend URL.
+- Confirm Firestore org documents consistently include `seatsLimit` for all existing customer records.
 
 ### P1
-- Add dedupe safeguards for onboarding employee imports so repeated submissions cannot create duplicates.
-- Extend onboarding with first-campaign prefill if the campaign creation page should inherit onboarding choices.
+- Persist payment history records for display on the billing page instead of the current placeholder section.
+- Add stronger webhook auditing/logging around repeated ITN notifications and billing transitions.
 
 ### P2
-- Code-split large route bundles to reduce the current production chunk warning.
-- Add richer empty states and deeper premium polish to remaining non-upgraded pages.
+- Code-split large frontend bundles to reduce the current chunk warning.
+- Add invoice export/download actions once payment history is stored.
 
 ## Next Tasks
-- Validate the first-run onboarding path with a working Firebase client setup.
-- Optionally prefill the campaign builder with the onboarding template selection.
-- Expand the landing page footer links to real policy/help pages if those routes are added later.
+- Run a live sandbox checkout and webhook test with PayFast credentials and a public backend callback URL.
+- Backfill `seatsLimit` on any org docs that still rely on older seat fields.
+- Replace the payment-history placeholder with real Firestore-backed payment records if required.

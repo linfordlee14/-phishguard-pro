@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEmployees } from '@/hooks/useEmployees'
+import { useAuth } from '@/hooks/useAuth'
+import { useFirestore } from '@/hooks/useFirestore'
 import { Navbar } from '@/components/layout/Navbar'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -14,9 +16,25 @@ import { Plus, Upload, Pencil, Trash2, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Employee } from '@/types'
 
+type PlanId = 'starter' | 'pro' | 'business'
+
+interface EmployeeListOrg {
+  id: string
+  plan?: PlanId
+  seatsLimit?: number
+}
+
+const PLAN_LABELS: Record<PlanId, string> = {
+  starter: 'Starter',
+  pro: 'Pro',
+  business: 'Business',
+}
+
 export default function EmployeeList() {
   const navigate = useNavigate()
+  const { orgId } = useAuth()
   const { employees, loading, addEmployee, updateEmployee, deleteEmployee, bulkAddEmployees } = useEmployees()
+  const organizationStore = useFirestore<EmployeeListOrg>('organizations')
   const [search, setSearch] = useState('')
   const [deptFilter, setDeptFilter] = useState('all')
   const [riskFilter, setRiskFilter] = useState('all')
@@ -28,6 +46,35 @@ export default function EmployeeList() {
   const [formEmail, setFormEmail] = useState('')
   const [formDept, setFormDept] = useState('')
   const [saving, setSaving] = useState(false)
+  const [organization, setOrganization] = useState<EmployeeListOrg | null>(null)
+  const [seatLimitModalOpen, setSeatLimitModalOpen] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    if (orgId) {
+      void organizationStore.getOne(orgId).then((org) => {
+        if (active) setOrganization(org)
+      })
+    } else {
+      setOrganization(null)
+    }
+
+    return () => {
+      active = false
+    }
+  }, [orgId])
+
+  const currentPlan = organization?.plan ?? 'starter'
+  const seatLimit = organization?.seatsLimit ?? 10
+
+  const openSeatLimitModal = () => {
+    if (employees.length >= seatLimit) {
+      setSeatLimitModalOpen(true)
+      return true
+    }
+    return false
+  }
 
   const departments = useMemo(() => {
     const depts = [...new Set(employees.map((e: Employee) => e.department))]
@@ -44,6 +91,7 @@ export default function EmployeeList() {
   }, [employees, search, deptFilter, riskFilter])
 
   const openAdd = () => {
+    if (openSeatLimitModal()) return
     setEditingId(null)
     setFormName('')
     setFormEmail('')
@@ -91,6 +139,11 @@ export default function EmployeeList() {
   }
 
   const handleCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (openSeatLimitModal()) {
+      e.target.value = ''
+      return
+    }
+
     const file = e.target.files?.[0]
     if (!file) return
     try {
@@ -211,6 +264,18 @@ export default function EmployeeList() {
           <div className="flex gap-3 justify-end pt-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} loading={saving}>{editingId ? 'Update' : 'Add'}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={seatLimitModalOpen} onClose={() => setSeatLimitModalOpen(false)} title="Seat limit reached">
+        <div className="space-y-5">
+          <p className="text-sm leading-7 text-text-2" data-testid="employee-seat-limit-modal-body">
+            Your {PLAN_LABELS[currentPlan]} plan includes {seatLimit} seats. Upgrade your plan to add more employees.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setSeatLimitModalOpen(false)} data-testid="employee-seat-limit-cancel-button">Cancel</Button>
+            <Button onClick={() => navigate('/billing')} data-testid="employee-seat-limit-upgrade-button">Upgrade Plan</Button>
           </div>
         </div>
       </Modal>

@@ -19,6 +19,7 @@ import TrainingOverview from '@/pages/training/TrainingOverview'
 import TrainingModule from '@/pages/training/TrainingModule'
 import Reports from '@/pages/reports/Reports'
 import Billing from '@/pages/billing/Billing'
+import BillingSuccess from '@/pages/billing/BillingSuccess'
 import Settings from '@/pages/settings/Settings'
 
 function AuthenticatedLayout() {
@@ -89,6 +90,7 @@ export default function App() {
               <Route path="/training" element={<TrainingOverview />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/billing" element={<Billing />} />
+              <Route path="/billing/success" element={<BillingSuccess />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>

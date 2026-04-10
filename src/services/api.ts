@@ -61,6 +61,24 @@ export const generateAITemplate = async (brand: string, scenario: string, diffic
   })
 }
 
+export const createCheckout = async (
+  planId: string,
+  userId: string,
+  email: string,
+  orgId: string
+): Promise<{ paymentUrl: string }> => {
+  const res = await fetch(
+    `${import.meta.env.VITE_API_BASE_URL}/api/billing/create-checkout`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId, userId, email, orgId }),
+    }
+  )
+  if (!res.ok) throw new Error('Checkout failed')
+  return res.json()
+}
+
 export const sendCopilotMessage = async (
   message: string,
   orgId: string,

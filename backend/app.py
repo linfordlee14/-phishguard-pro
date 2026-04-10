@@ -1,5 +1,8 @@
 import os
 import json
+import hashlib
+import ipaddress
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,6 +12,17 @@ from flask_cors import CORS
 import firebase_admin
 from firebase_admin import credentials, firestore
 from ai_service import generate_risk_narrative, generate_campaign_debrief, generate_phishing_template, copilot_chat
+
+PLANS = {
+    'starter': {'name': 'Starter Plan', 'amount': '399.00', 'seats': 10},
+    'pro': {'name': 'Pro Plan', 'amount': '749.00', 'seats': 25},
+    'business': {'name': 'Business Plan', 'amount': '1499.00', 'seats': 100},
+}
+
+PAYFAST_IP_RANGES = [
+    ipaddress.ip_network('197.97.145.144/28'),
+    ipaddress.ip_network('41.74.179.192/27'),
+]
 
 app = Flask(__name__)
 CORS(
@@ -62,9 +76,131 @@ def get_db():
 init_firebase()
 
 
+def build_payfast_param_string(params: dict, passphrase: str = "") -> str:
+    encoded_pairs = []
+    for key in sorted(params):
+        if key == 'signature':
+            continue
+
+        value = params.get(key)
+        if value is None or value == '':
+            continue
+
+        encoded_pairs.append(f"{key}={urllib.parse.quote_plus(str(value))}")
+
+    param_string = '&'.join(encoded_pairs)
+    if passphrase:
+        param_string = f"{param_string}&passphrase={urllib.parse.quote_plus(passphrase)}" if param_string else f"passphrase={urllib.parse.quote_plus(passphrase)}"
+    return param_string
+
+
+def generate_payfast_signature(params: dict, passphrase: str = "") -> str:
+    param_string = build_payfast_param_string(params, passphrase)
+    return hashlib.md5(param_string.encode('utf-8')).hexdigest()
+
+
+def get_request_ip() -> str:
+    forwarded_for = request.headers.get('X-Forwarded-For', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.remote_addr or ''
+
+
+def is_payfast_ip_allowed(ip_address: str) -> bool:
+    try:
+        parsed_ip = ipaddress.ip_address(ip_address)
+    except ValueError:
+        return False
+
+    return any(parsed_ip in allowed_range for allowed_range in PAYFAST_IP_RANGES)
+
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
+
+
+@app.route("/api/billing/create-checkout", methods=["POST"])
+def create_checkout():
+    data = request.get_json() or {}
+
+    plan_id = data.get('planId')
+    user_id = data.get('userId')
+    email = data.get('email')
+    org_id = data.get('orgId')
+
+    if plan_id not in PLANS:
+        return jsonify({'error': 'Invalid planId'}), 400
+
+    if not all([user_id, email, org_id]):
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    sandbox = os.environ.get('PAYFAST_SANDBOX', 'true').lower() == 'true'
+    base_url = 'https://sandbox.payfast.co.za/eng/process' if sandbox else 'https://www.payfast.co.za/eng/process'
+    passphrase = os.environ.get('PAYFAST_PASSPHRASE', '').strip()
+
+    params = {
+        'merchant_id': os.environ.get('PAYFAST_MERCHANT_ID', '10000100'),
+        'merchant_key': os.environ.get('PAYFAST_MERCHANT_KEY', '46f0cd694581a'),
+        'return_url': f"{os.environ.get('APP_URL', 'https://phishguard-pro.linfytech.xyz')}/billing/success?plan={plan_id}",
+        'cancel_url': f"{os.environ.get('APP_URL', 'https://phishguard-pro.linfytech.xyz')}/billing",
+        'notify_url': f"{os.environ.get('BACKEND_URL', 'http://localhost:8001')}/api/billing/webhook",
+        'amount': PLANS[plan_id]['amount'],
+        'item_name': f"PhishGuard Pro - {PLANS[plan_id]['name']}",
+        'custom_str1': org_id,
+        'custom_str2': plan_id,
+        'custom_str3': user_id,
+        'email_address': email,
+    }
+
+    params['signature'] = generate_payfast_signature(params, passphrase)
+    payment_url = f"{base_url}?{urllib.parse.urlencode(params)}"
+
+    return jsonify({'paymentUrl': payment_url})
+
+
+@app.route("/api/billing/webhook", methods=["POST"])
+def billing_webhook():
+    form_data = request.form.to_dict(flat=True)
+    if form_data.get('payment_status') != 'COMPLETE':
+        return 'OK', 200
+
+    passphrase = os.environ.get('PAYFAST_PASSPHRASE', '').strip()
+    posted_signature = form_data.get('signature', '')
+    expected_signature = generate_payfast_signature({k: v for k, v in form_data.items() if k != 'signature'}, passphrase)
+
+    if expected_signature != posted_signature:
+        app.logger.warning('PayFast webhook signature mismatch for org %s', form_data.get('custom_str1'))
+        return 'OK', 200
+
+    sandbox = os.environ.get('PAYFAST_SANDBOX', 'true').lower() == 'true'
+    if not sandbox:
+        request_ip = get_request_ip()
+        if not is_payfast_ip_allowed(request_ip):
+            app.logger.warning('Rejected PayFast webhook from IP %s', request_ip)
+            return 'OK', 200
+
+    org_id = form_data.get('custom_str1')
+    plan_id = form_data.get('custom_str2')
+    user_id = form_data.get('custom_str3')
+
+    if not org_id or not plan_id or not user_id or plan_id not in PLANS:
+        app.logger.warning('PayFast webhook missing required identifiers: %s', form_data)
+        return 'OK', 200
+
+    db = get_db()
+    if db is None:
+        app.logger.warning('PayFast webhook received but Firebase is not configured')
+        return 'OK', 200
+
+    db.collection('organizations').document(org_id).set({
+        'plan': plan_id,
+        'seatsLimit': PLANS[plan_id]['seats'],
+        'planActivatedAt': firestore.SERVER_TIMESTAMP,
+        'billingStatus': 'active',
+    }, merge=True)
+
+    return 'OK', 200
 
 
 @app.route("/api/send-campaign", methods=["POST"])
